@@ -15,7 +15,8 @@ import utils
 from transformer_net import TransformerNet
 from vgg import Vgg16
 
-
+from tensorboard import SummaryWriter
+writer = SummaryWriter('runs')
 def check_paths(args):
     try:
         if not os.path.exists(args.save_model_dir):
@@ -110,7 +111,10 @@ def train(args):
                                   (agg_content_loss + agg_style_loss) / (batch_id + 1)
                 )
                 print(mesg)
-
+                niter = e*len(train_dataset)+batch_id
+                writer.add_scalar('content loss', agg_content_loss / (batch_id + 1), niter)
+                writer.add_scalar('style loss', agg_style_loss / (batch_id + 1), niter)
+                writer.add_scalar('total loss', agg_content_loss / (agg_content_loss + agg_style_loss) / (batch_id + 1), niter)
             if args.checkpoint_model_dir is not None and (batch_id + 1) % args.checkpoint_interval == 0:
                 transformer.eval()
                 if args.cuda:
@@ -155,7 +159,7 @@ def stylize(args):
         output = output.cpu()
     output_data = output.data[0]
     utils.save_image(args.output_image, output_data)
-
+    writer.add_image('output', output_data)
 
 def main():
     main_arg_parser = argparse.ArgumentParser(description="parser for fast-neural-style")

@@ -15,6 +15,8 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
+from tensorboard import SummaryWriter
+writer = SummaryWriter('runs')
 
 model_names = sorted(name for name in models.__dict__
     if name.islower() and not name.startswith("__")
@@ -220,7 +222,10 @@ def train(train_loader, model, criterion, optimizer, epoch):
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    epoch, i, len(train_loader), batch_time=batch_time,
                    data_time=data_time, loss=losses, top1=top1, top5=top5))
-
+            niter = epoch*len(train_loader)+i
+            writer.add_scalar('Train/Loss', losses.val, niter)
+            writer.add_scalar('Train/Prec@1', top1.val, niter)
+            writer.add_scalar('Train/Prec@5', top5.val, niter)
 
 def validate(val_loader, model, criterion):
     batch_time = AverageMeter()
@@ -259,7 +264,10 @@ def validate(val_loader, model, criterion):
                   'Prec@5 {top5.val:.3f} ({top5.avg:.3f})'.format(
                    i, len(val_loader), batch_time=batch_time, loss=losses,
                    top1=top1, top5=top5))
-
+            niter = epoch*len(train_loader)+i
+            writer.add_scalar('Test/Loss', losses.val, niter)
+            writer.add_scalar('Test/Prec@1', top1.val, niter)
+            writer.add_scalar('Test/Prec@5', top5.val, niter)
     print(' * Prec@1 {top1.avg:.3f} Prec@5 {top5.avg:.3f}'
           .format(top1=top1, top5=top5))
 

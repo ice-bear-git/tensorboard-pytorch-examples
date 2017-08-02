@@ -6,7 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.autograd import Variable
-
+from tensorboard import SummaryWriter
+writer = SummaryWriter('runs')
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
 parser.add_argument('--batch-size', type=int, default=64, metavar='N',
@@ -88,6 +89,8 @@ def train(epoch):
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), loss.data[0]))
+            niter = epoch*len(train_loader)+batch_idx
+            writer.add_scalar('Train/Loss', loss.data[0], niter)
 
 def test():
     model.eval()

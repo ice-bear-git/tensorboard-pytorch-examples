@@ -9,13 +9,15 @@ from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from model import Net
 from data import get_training_set, get_test_set
-
+import torchvision.utils as vutils
+from tensorboard import SummaryWriter
+writer = SummaryWriter('runs')
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')
 parser.add_argument('--upscale_factor', type=int, required=True, help="super resolution upscale factor")
 parser.add_argument('--batchSize', type=int, default=64, help='training batch size')
 parser.add_argument('--testBatchSize', type=int, default=10, help='testing batch size')
-parser.add_argument('--nEpochs', type=int, default=2, help='number of epochs to train for')
+parser.add_argument('--nEpochs', type=int, default=200, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.01, help='Learning Rate. Default=0.01')
 parser.add_argument('--cuda', action='store_true', help='use cuda?')
 parser.add_argument('--threads', type=int, default=4, help='number of threads for data loader to use')
@@ -58,13 +60,16 @@ def train(epoch):
             target = target.cuda()
 
         optimizer.zero_grad()
-        loss = criterion(model(input), target)
+        output = model(input)
+        loss = criterion(output, target)
         epoch_loss += loss.data[0]
         loss.backward()
         optimizer.step()
 
         print("===> Epoch[{}]({}/{}): Loss: {:.4f}".format(epoch, iteration, len(training_data_loader), loss.data[0]))
-
+        niter = epoch*len(training_data_loader)+iteration
+        writer.add_scalar('Loss', loss.data[0], niter)
+        writer.add_image('Output', vutils.make_grid(output.data, normalize=True, scale_each=True), niter)
     print("===> Epoch {} Complete: Avg. Loss: {:.4f}".format(epoch, epoch_loss / len(training_data_loader)))
 
 
@@ -85,7 +90,7 @@ def test():
 
 def checkpoint(epoch):
     model_out_path = "model_epoch_{}.pth".format(epoch)
-    torch.save(model, model_out_path)
+    #torch.save(model, model_out_path)
     print("Checkpoint saved to {}".format(model_out_path))
 
 for epoch in range(1, opt.nEpochs + 1):

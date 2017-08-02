@@ -12,8 +12,8 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-
-
+from tensorboard import SummaryWriter
+writer = SummaryWriter('runs')
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', required=True, help='cifar10 | lsun | imagenet | folder | lfw ')
 parser.add_argument('--dataroot', required=True, help='path to dataset')
@@ -35,7 +35,7 @@ parser.add_argument('--manualSeed', type=int, help='manual seed')
 
 opt = parser.parse_args()
 print(opt)
-
+writer.add_text('opt', str(opt), 0)
 try:
     os.makedirs(opt.outf)
 except OSError:
@@ -44,6 +44,7 @@ except OSError:
 if opt.manualSeed is None:
     opt.manualSeed = random.randint(1, 10000)
 print("Random Seed: ", opt.manualSeed)
+writer.add_text('Random Seed: ', str(opt.manualSeed), 0)
 random.seed(opt.manualSeed)
 torch.manual_seed(opt.manualSeed)
 if opt.cuda:
@@ -251,15 +252,24 @@ for epoch in range(opt.niter):
         print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
               % (epoch, opt.niter, i, len(dataloader),
                  errD.data[0], errG.data[0], D_x, D_G_z1, D_G_z2))
+        niter = epoch*len(dataloader)+i
+        writer.add_scalar('Loss/D', errD.data[0], niter)
+        writer.add_scalar('Loss/G', errG.data[0], niter)
+        writer.add_scalar('D(x)', D_x, niter)
+        writer.add_scalar('D(G(z1))', D_G_z1, niter)
+        writer.add_scalar('D(G(z2))', D_G_z2, niter)
+        
         if i % 100 == 0:
             vutils.save_image(real_cpu,
                     '%s/real_samples.png' % opt.outf,
                     normalize=True)
+            writer.add_image('real_samples', vutils.make_grid(real_cpu, normalize=True), niter)
             fake = netG(fixed_noise)
             vutils.save_image(fake.data,
                     '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                     normalize=True)
-
+            writer.add_image('fake_samples', vutils.make_grid(fake.data, normalize=True), niter)
+        
     # do checkpointing
     torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
     torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
