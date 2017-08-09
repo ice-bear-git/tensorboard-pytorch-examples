@@ -1,0 +1,531 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>tensorboard.writer &mdash; tensorboard-pytorch  documentation</title>
+  
+
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+  
+    <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  
+
+  
+
+  
+        <link rel="index" title="Index"
+              href="../../genindex.html"/>
+        <link rel="search" title="Search" href="../../search.html"/>
+    <link rel="top" title="tensorboard-pytorch  documentation" href="../../index.html"/>
+        <link rel="up" title="Module code" href="../index.html"/> 
+
+  
+  <script src="../../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> tensorboard-pytorch
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+                <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../tensorboard.html">tensorboard-pytorch</a></li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" role="navigation" aria-label="top navigation">
+        <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+        <a href="../../index.html">tensorboard-pytorch</a>
+      </nav>
+
+
+      
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../../index.html">Docs</a> &raquo;</li>
+      
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+      
+    <li>tensorboard.writer</li>
+      <li class="wy-breadcrumbs-aside">
+        
+          
+        
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for tensorboard.writer</h1><div class="highlight"><pre>
+<span></span><span class="c1"># Copyright 2016 The TensorFlow Authors. All Rights Reserved.</span>
+<span class="c1">#</span>
+<span class="c1"># Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);</span>
+<span class="c1"># you may not use this file except in compliance with the License.</span>
+<span class="c1"># You may obtain a copy of the License at</span>
+<span class="c1">#</span>
+<span class="c1">#     http://www.apache.org/licenses/LICENSE-2.0</span>
+<span class="c1">#</span>
+<span class="c1"># Unless required by applicable law or agreed to in writing, software</span>
+<span class="c1"># distributed under the License is distributed on an &quot;AS IS&quot; BASIS,</span>
+<span class="c1"># WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.</span>
+<span class="c1"># See the License for the specific language governing permissions and</span>
+<span class="c1"># limitations under the License.</span>
+<span class="c1"># ==============================================================================</span>
+<span class="sd">&quot;&quot;&quot;Provides an API for generating Event protocol buffers.&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">absolute_import</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">division</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="k">import</span> <span class="n">print_function</span>
+
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">from</span> <span class="nn">.src</span> <span class="k">import</span> <span class="n">event_pb2</span>
+<span class="kn">from</span> <span class="nn">.src</span> <span class="k">import</span> <span class="n">summary_pb2</span>
+<span class="kn">from</span> <span class="nn">.src</span> <span class="k">import</span> <span class="n">graph_pb2</span>
+<span class="kn">from</span> <span class="nn">.event_file_writer</span> <span class="k">import</span> <span class="n">EventFileWriter</span>
+<span class="kn">from</span> <span class="nn">.summary</span> <span class="k">import</span> <span class="n">scalar</span><span class="p">,</span> <span class="n">histogram</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">audio</span><span class="p">,</span> <span class="n">text</span>
+<span class="kn">from</span> <span class="nn">.graph</span> <span class="k">import</span> <span class="n">graph</span>
+
+
+<span class="k">class</span> <span class="nc">SummaryToEventTransformer</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Abstractly implements the SummaryWriter API.</span>
+<span class="sd">    This API basically implements a number of endpoints (add_summary,</span>
+<span class="sd">    add_session_log, etc). The endpoints all generate an event protobuf, which is</span>
+<span class="sd">    passed to the contained event_writer.</span>
+<span class="sd">    @@__init__</span>
+<span class="sd">    @@add_summary</span>
+<span class="sd">    @@add_session_log</span>
+<span class="sd">    @@add_graph</span>
+<span class="sd">    @@add_meta_graph</span>
+<span class="sd">    @@add_run_metadata</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event_writer</span><span class="p">,</span> <span class="n">graph</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">graph_def</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a `SummaryWriter` and an event file.</span>
+<span class="sd">        On construction the summary writer creates a new event file in `logdir`.</span>
+<span class="sd">        This event file will contain `Event` protocol buffers constructed when you</span>
+<span class="sd">        call one of the following functions: `add_summary()`, `add_session_log()`,</span>
+<span class="sd">        `add_event()`, or `add_graph()`.</span>
+<span class="sd">        If you pass a `Graph` to the constructor it is added to</span>
+<span class="sd">        the event file. (This is equivalent to calling `add_graph()` later).</span>
+<span class="sd">        TensorBoard will pick the graph from the file and display it graphically so</span>
+<span class="sd">        you can interactively explore the graph you built. You will usually pass</span>
+<span class="sd">        the graph from the session in which you launched it:</span>
+<span class="sd">        ```python</span>
+<span class="sd">        ...create a graph...</span>
+<span class="sd">        # Launch the graph in a session.</span>
+<span class="sd">        sess = tf.Session()</span>
+<span class="sd">        # Create a summary writer, add the &#39;graph&#39; to the event file.</span>
+<span class="sd">        writer = tf.summary.FileWriter(&lt;some-directory&gt;, sess.graph)</span>
+<span class="sd">        ```</span>
+<span class="sd">        Args:</span>
+<span class="sd">          event_writer: An EventWriter. Implements add_event method.</span>
+<span class="sd">          graph: A `Graph` object, such as `sess.graph`.</span>
+<span class="sd">          graph_def: DEPRECATED: Use the `graph` argument instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span> <span class="o">=</span> <span class="n">event_writer</span>
+        <span class="c1"># For storing used tags for session.run() outputs.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_session_run_tags</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># TODO(zihaolucky). pass this an empty graph to check whether it&#39;s necessary.</span>
+        <span class="c1"># currently we don&#39;t support graph in MXNet using tensorboard.</span>
+
+    <span class="k">def</span> <span class="nf">add_summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">summary</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a `Summary` protocol buffer to the event file.</span>
+<span class="sd">        This method wraps the provided summary in an `Event` protocol buffer</span>
+<span class="sd">        and adds it to the event file.</span>
+<span class="sd">        You can pass the result of evaluating any summary op, using</span>
+<span class="sd">        [`Session.run()`](client.md#Session.run) or</span>
+<span class="sd">        [`Tensor.eval()`](framework.md#Tensor.eval), to this</span>
+<span class="sd">        function. Alternatively, you can pass a `tf.Summary` protocol</span>
+<span class="sd">        buffer that you populate with your own data. The latter is</span>
+<span class="sd">        commonly done to report evaluation results in event files.</span>
+<span class="sd">        Args:</span>
+<span class="sd">          summary: A `Summary` protocol buffer, optionally serialized as a string.</span>
+<span class="sd">          global_step: Number. Optional global step value to record with the</span>
+<span class="sd">            summary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">summary</span><span class="p">,</span> <span class="nb">bytes</span><span class="p">):</span>
+            <span class="n">summ</span> <span class="o">=</span> <span class="n">summary_pb2</span><span class="o">.</span><span class="n">Summary</span><span class="p">()</span>
+            <span class="n">summ</span><span class="o">.</span><span class="n">ParseFromString</span><span class="p">(</span><span class="n">summary</span><span class="p">)</span>
+            <span class="n">summary</span> <span class="o">=</span> <span class="n">summ</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="n">event_pb2</span><span class="o">.</span><span class="n">Event</span><span class="p">(</span><span class="n">summary</span><span class="o">=</span><span class="n">summary</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_add_event</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">global_step</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">graph</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a `Graph` protocol buffer to the event file.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="n">event_pb2</span><span class="o">.</span><span class="n">Event</span><span class="p">(</span><span class="n">graph_def</span><span class="o">=</span><span class="n">graph</span><span class="o">.</span><span class="n">SerializeToString</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_add_event</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">add_session_log</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">session_log</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds a `SessionLog` protocol buffer to the event file.</span>
+<span class="sd">        This method wraps the provided session in an `Event` protocol buffer</span>
+<span class="sd">        and adds it to the event file.</span>
+<span class="sd">        Args:</span>
+<span class="sd">          session_log: A `SessionLog` protocol buffer.</span>
+<span class="sd">          global_step: Number. Optional global step value to record with the</span>
+<span class="sd">            summary.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">event</span> <span class="o">=</span> <span class="n">event_pb2</span><span class="o">.</span><span class="n">Event</span><span class="p">(</span><span class="n">session_log</span><span class="o">=</span><span class="n">session_log</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_add_event</span><span class="p">(</span><span class="n">event</span><span class="p">,</span> <span class="n">global_step</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_add_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">,</span> <span class="n">step</span><span class="p">):</span>
+        <span class="n">event</span><span class="o">.</span><span class="n">wall_time</span> <span class="o">=</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">step</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">event</span><span class="o">.</span><span class="n">step</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">step</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+
+<span class="k">class</span> <span class="nc">FileWriter</span><span class="p">(</span><span class="n">SummaryToEventTransformer</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes `Summary` protocol buffers to event files.</span>
+<span class="sd">    The `FileWriter` class provides a mechanism to create an event file in a</span>
+<span class="sd">    given directory and add summaries and events to it. The class updates the</span>
+<span class="sd">    file contents asynchronously. This allows a training program to call methods</span>
+<span class="sd">    to add data to the file directly from the training loop, without slowing down</span>
+<span class="sd">    training.</span>
+<span class="sd">    @@__init__</span>
+<span class="sd">    @@add_summary</span>
+<span class="sd">    @@add_session_log</span>
+<span class="sd">    @@add_event</span>
+<span class="sd">    @@add_graph</span>
+<span class="sd">    @@add_run_metadata</span>
+<span class="sd">    @@get_logdir</span>
+<span class="sd">    @@flush</span>
+<span class="sd">    @@close</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span>
+                 <span class="n">logdir</span><span class="p">,</span>
+                 <span class="n">graph</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">max_queue</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+                 <span class="n">flush_secs</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>
+                 <span class="n">graph_def</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Creates a `FileWriter` and an event file.</span>
+<span class="sd">        On construction the summary writer creates a new event file in `logdir`.</span>
+<span class="sd">        This event file will contain `Event` protocol buffers constructed when you</span>
+<span class="sd">        call one of the following functions: `add_summary()`, `add_session_log()`,</span>
+<span class="sd">        `add_event()`, or `add_graph()`.</span>
+<span class="sd">        If you pass a `Graph` to the constructor it is added to</span>
+<span class="sd">        the event file. (This is equivalent to calling `add_graph()` later).</span>
+<span class="sd">        TensorBoard will pick the graph from the file and display it graphically so</span>
+<span class="sd">        you can interactively explore the graph you built. You will usually pass</span>
+<span class="sd">        the graph from the session in which you launched it:</span>
+<span class="sd">        ```python</span>
+<span class="sd">        ...create a graph...</span>
+<span class="sd">        # Launch the graph in a session.</span>
+<span class="sd">        sess = tf.Session()</span>
+<span class="sd">        # Create a summary writer, add the &#39;graph&#39; to the event file.</span>
+<span class="sd">        writer = tf.summary.FileWriter(&lt;some-directory&gt;, sess.graph)</span>
+<span class="sd">        ```</span>
+<span class="sd">        The other arguments to the constructor control the asynchronous writes to</span>
+<span class="sd">        the event file:</span>
+<span class="sd">        *  `flush_secs`: How often, in seconds, to flush the added summaries</span>
+<span class="sd">           and events to disk.</span>
+<span class="sd">        *  `max_queue`: Maximum number of summaries or events pending to be</span>
+<span class="sd">           written to disk before one of the &#39;add&#39; calls block.</span>
+<span class="sd">        Args:</span>
+<span class="sd">          logdir: A string. Directory where event file will be written.</span>
+<span class="sd">          graph: A `Graph` object, such as `sess.graph`.</span>
+<span class="sd">          max_queue: Integer. Size of the queue for pending events and summaries.</span>
+<span class="sd">          flush_secs: Number. How often, in seconds, to flush the</span>
+<span class="sd">            pending events and summaries to disk.</span>
+<span class="sd">          graph_def: DEPRECATED: Use the `graph` argument instead.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">event_writer</span> <span class="o">=</span> <span class="n">EventFileWriter</span><span class="p">(</span><span class="n">logdir</span><span class="p">,</span> <span class="n">max_queue</span><span class="p">,</span> <span class="n">flush_secs</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">FileWriter</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">__init__</span><span class="p">(</span><span class="n">event_writer</span><span class="p">,</span> <span class="n">graph</span><span class="p">,</span> <span class="n">graph_def</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">get_logdir</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Returns the directory where event file will be written.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span><span class="o">.</span><span class="n">get_logdir</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">add_event</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">event</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Adds an event to the event file.</span>
+<span class="sd">        Args:</span>
+<span class="sd">          event: An `Event` protocol buffer.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span><span class="o">.</span><span class="n">add_event</span><span class="p">(</span><span class="n">event</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Flushes the event file to disk.</span>
+<span class="sd">        Call this method to make sure that all pending events have been written to</span>
+<span class="sd">        disk.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Flushes the event file to disk and close the file.</span>
+<span class="sd">        Call this method when you do not need the summary writer anymore.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">reopen</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Reopens the EventFileWriter.</span>
+<span class="sd">        Can be called after `close()` to add more events in the same directory.</span>
+<span class="sd">        The events will go into a new events file.</span>
+<span class="sd">        Does nothing if the EventFileWriter was not closed.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">event_writer</span><span class="o">.</span><span class="n">reopen</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="SummaryWriter"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter">[docs]</a><span class="k">class</span> <span class="nc">SummaryWriter</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;Writes `Summary` directly to event files.</span>
+<span class="sd">    The `SummaryWriter` class provides a high-level api to create an event file in a</span>
+<span class="sd">    given directory and add summaries and events to it. The class updates the</span>
+<span class="sd">    file contents asynchronously. This allows a training program to call methods</span>
+<span class="sd">    to add data to the file directly from the training loop, without slowing down</span>
+<span class="sd">    training.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+<div class="viewcode-block" id="SummaryWriter.__init__"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.__init__">[docs]</a>    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">log_dir</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            log_dir (string): save location</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span> <span class="o">=</span> <span class="n">FileWriter</span><span class="p">(</span><span class="n">logdir</span><span class="o">=</span><span class="n">log_dir</span><span class="p">)</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="mi">1</span><span class="n">E</span><span class="o">-</span><span class="mi">12</span>
+        <span class="n">buckets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">neg_buckets</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">while</span> <span class="n">v</span> <span class="o">&lt;</span> <span class="mi">1</span><span class="n">E20</span><span class="p">:</span>
+            <span class="n">buckets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">neg_buckets</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="o">-</span><span class="n">v</span><span class="p">)</span>
+            <span class="n">v</span> <span class="o">*=</span> <span class="mf">1.1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">default_bins</span> <span class="o">=</span> <span class="n">neg_buckets</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">buckets</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">text_tags</span> <span class="o">=</span> <span class="p">[]</span></div>
+<div class="viewcode-block" id="SummaryWriter.add_scalar"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.add_scalar">[docs]</a>    <span class="k">def</span> <span class="nf">add_scalar</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">scalar_value</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add scalar data to summary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag (string): Data identifier</span>
+<span class="sd">            scalar_value (float): Value to save</span>
+<span class="sd">            global_step (int): Global step value to record</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">scalar</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">scalar_value</span><span class="p">),</span> <span class="n">global_step</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SummaryWriter.add_histogram"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.add_histogram">[docs]</a>    <span class="k">def</span> <span class="nf">add_histogram</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">bins</span><span class="o">=</span><span class="s1">&#39;tensorflow&#39;</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add histogram to summary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag (string): Data identifier</span>
+<span class="sd">            values (numpy.array): Values to build histogram</span>
+<span class="sd">            global_step (int): Global step value to record</span>
+<span class="sd">            bins (string): one of {&#39;tensorflow&#39;,&#39;auto&#39;, &#39;fd&#39;, ...}, this determines how the bins are made. You can find other options in: https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">bins</span><span class="o">==</span><span class="s1">&#39;tensorflow&#39;</span><span class="p">:</span>
+            <span class="n">bins</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">default_bins</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">histogram</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">values</span><span class="p">,</span> <span class="n">bins</span><span class="p">),</span> <span class="n">global_step</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="SummaryWriter.add_image"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.add_image">[docs]</a>    <span class="k">def</span> <span class="nf">add_image</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">img_tensor</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add image data to summary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag (string): Data identifier</span>
+<span class="sd">            img_tensor (torch.Tensor): Image data</span>
+<span class="sd">            global_step (int): Global step value to record</span>
+<span class="sd">        Shape:</span>
+<span class="sd">            img_tensor: :math:`(3, H, W)`. Use ``torchvision.utils.make_grid()`` to prepare it is a good idea.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">image</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">img_tensor</span><span class="p">),</span> <span class="n">global_step</span><span class="p">)</span></div>
+<div class="viewcode-block" id="SummaryWriter.add_audio"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.add_audio">[docs]</a>    <span class="k">def</span> <span class="nf">add_audio</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">snd_tensor</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add audio data to summary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag (string): Data identifier</span>
+<span class="sd">            snd_tensor (torch.Tensor): Sound data</span>
+<span class="sd">            global_step (int): Global step value to record</span>
+
+<span class="sd">        Shape:</span>
+<span class="sd">            snd_tensor: :math:`(1, L)`. The values should between [-1, 1]. The sample rate is currently fixed at 44100 KHz.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">audio</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">snd_tensor</span><span class="p">),</span> <span class="n">global_step</span><span class="p">)</span></div>
+<div class="viewcode-block" id="SummaryWriter.add_text"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.add_text">[docs]</a>    <span class="k">def</span> <span class="nf">add_text</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">tag</span><span class="p">,</span> <span class="n">text_string</span><span class="p">,</span> <span class="n">global_step</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Add text data to summary.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            tag (string): Data identifier</span>
+<span class="sd">            text_string (string): String to save</span>
+<span class="sd">            global_step (int): Global step value to record</span>
+
+<span class="sd">        Examples::</span>
+
+<span class="sd">            writer.add_text(&#39;lstm&#39;, &#39;This is an lstm&#39;, 0)</span>
+<span class="sd">            writer.add_text(&#39;rnn&#39;, &#39;This is an rnn&#39;, 10)</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>        
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">add_summary</span><span class="p">(</span><span class="n">text</span><span class="p">(</span><span class="n">tag</span><span class="p">,</span> <span class="n">text_string</span><span class="p">),</span> <span class="n">global_step</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">tag</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_tags</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">text_tags</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tag</span><span class="p">)</span>
+            <span class="n">extensionDIR</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">get_logdir</span><span class="p">()</span><span class="o">+</span><span class="s1">&#39;/plugins/tensorboard_text/&#39;</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">extensionDIR</span><span class="p">):</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">extensionDIR</span><span class="p">)</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">extensionDIR</span> <span class="o">+</span> <span class="s1">&#39;tensors.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">fp</span><span class="p">:</span>
+                <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">text_tags</span><span class="p">,</span> <span class="n">fp</span><span class="p">)</span></div>
+<div class="viewcode-block" id="SummaryWriter.add_graph"><a class="viewcode-back" href="../../tensorboard.html#tensorboard.SummaryWriter.add_graph">[docs]</a>    <span class="k">def</span> <span class="nf">add_graph</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">,</span> <span class="n">lastVar</span><span class="p">):</span>
+        <span class="c1"># prohibit second call?</span>
+        <span class="c1"># no, let tensorboard handles it and show its warning message.</span>
+        <span class="sd">&quot;&quot;&quot;Add graph data to summary.</span>
+
+<span class="sd">            To draw the graph, you need a model ``m`` and an input variable ``t`` that have correct size for ``m``. </span>
+<span class="sd">            Say you have runned ``r = m(t)``, then you can use ``writer.add_graph(m, r)`` to save the graph. </span>
+<span class="sd">            By default, the input tensor does not require gradient, therefore it will be omitted when back tracing. </span>
+<span class="sd">            To draw the input node, pass an additional parameter ``requires_grad=True`` when creating the input tensor.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            model (torch.nn.Module): model to draw. </span>
+<span class="sd">            lastVar (torch.autograd.Variable): the root node start from.</span>
+
+<span class="sd">        .. note::</span>
+<span class="sd">            This is experimental feature. Graph drawing is based on autograd’s backward tracing. </span>
+<span class="sd">            It goes along the ``next_functions`` attribute in a variable recursively, drawing each encountered nodes. </span>
+<span class="sd">            In some cases, the result is strange. See  https://github.com/lanpa/tensorboard-pytorch/issues/7</span>
+<span class="sd">        &quot;&quot;&quot;</span>      
+        <span class="kn">import</span> <span class="nn">torch</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">autograd</span><span class="o">.</span><span class="n">Variable</span><span class="p">,</span> <span class="s1">&#39;grad_fn&#39;</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;pytorch version is too old, how about build by yourself?&#39;</span><span class="p">)</span>
+            <span class="k">return</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">add_graph</span><span class="p">(</span><span class="n">graph</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">lastVar</span><span class="p">))</span></div>
+
+
+    <span class="k">def</span> <span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+
+    <span class="k">def</span> <span class="nf">__del__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">file_writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2017, tensorboard-pytorch Contributors.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/snide/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../../',
+            VERSION:'',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true
+        };
+    </script>
+      <script type="text/javascript" src="../../_static/jquery.js"></script>
+      <script type="text/javascript" src="../../_static/underscore.js"></script>
+      <script type="text/javascript" src="../../_static/doctools.js"></script>
+      <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+  
+
+  
+  
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.StickyNav.enable();
+      });
+  </script>
+   
+
+</body>
+</html>
