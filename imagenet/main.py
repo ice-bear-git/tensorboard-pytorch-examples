@@ -15,7 +15,7 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
 
-from tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 writer = SummaryWriter('runs')
 
 model_names = sorted(name for name in models.__dict__

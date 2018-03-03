@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from model import Net
 from data import get_training_set, get_test_set
 import torchvision.utils as vutils
-from tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 writer = SummaryWriter('runs')
 # Training settings
 parser = argparse.ArgumentParser(description='PyTorch Super Res Example')

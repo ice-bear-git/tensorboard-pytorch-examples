@@ -15,7 +15,7 @@ import utils
 from transformer_net import TransformerNet
 from vgg import Vgg16
 
-from tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 writer = SummaryWriter('runs')
 def check_paths(args):
     try:

@@ -12,7 +12,7 @@ import torchvision.datasets as dset
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
 from torch.autograd import Variable
-from tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 writer = SummaryWriter('runs')
 parser = argparse.ArgumentParser()
 parser.add_argument('--dataset', required=True, help='cifar10 | lsun | imagenet | folder | lfw ')
