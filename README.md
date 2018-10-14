@@ -1,6 +1,6 @@
 # PyTorch Examples with tensorboard
 
-A repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch) with tensorboard(https://github.com/lanpa/tensorboard-pytorch)
+A repository showcasing examples of using [PyTorch](https://github.com/pytorch/pytorch) with tensorboard(https://github.com/lanpa/tensorboardX)
 
 - [X] MNIST Convnets
 - [ ] Word level Language Modeling using LSTM RNNs
